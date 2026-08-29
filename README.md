@@ -30,7 +30,10 @@ the database schema, RLS and triggers are the backend.
 - **Auth foundation:** triggers auto-create a `profile` and a default
   `Personal` budget book on signup (`0002`, `0003`).
 - **Business logic in DB:** balance maintenance and cross-book validation
-  are handled by PG triggers so clients never compute balances.
+  are handled by PG triggers so clients never compute balances. Account
+  owners may still directly UPDATE `current_balance` for reconciliation —
+  the trigger only fires on transaction changes, not on account changes,
+  so a manual override sticks as the new baseline for future transactions.
 - **Multi-book ready:** schema already supports `Personal` / `Family` / `Work`
   books; a user simply creates more books, and every entity scopes to one.
 
@@ -47,7 +50,12 @@ supabase/
     ├── 0004_accounts_categories.sql    # accounts, categories
     ├── 0005_transactions.sql           # transactions + balance triggers
     ├── 0006_budgets.sql                # budgets
-    └── 0007_rls.sql                    # RLS policies + grants
+    ├── 0007_rls.sql                    # RLS policies + grants
+    ├── 0008_revoke_security_definer_execute.sql
+    ├── 0009_categories_subcategories.sql   # hierarchical categories (parents + leaves)
+    ├── 0010_recipients.sql                  # recipients + transactions.recipient_id
+    ├── 0011_tags.sql                        # tags + transactions.tag_id
+    └── 0012_accounts_enhancements.sql       # accounts: richer type, color/icon/note, archived_at
 ```
 
 ## Schema & relationships
@@ -67,7 +75,7 @@ Entities:
 |-------|-----------|-------|
 | `profiles` | id, email, full_name, default_currency | 1:1 with auth.users |
 | `budget_books` | user_id, name, is_default | unique partial index: 1 default/user |
-| `accounts` | budget_book_id, name, type, currency, initial_balance, current_balance | type: cash/bank/credit/investment/other |
+| `accounts` | budget_book_id, name, type, currency, color, icon, note, initial_balance, current_balance, archived_at | type: payment/savings/credit_card/investment/reserve/liability/business/cash; `archived_at` NULL = active |
 | `categories` | budget_book_id, name, kind, icon, color | unique (book, name, kind) |
 | `transactions` | account_id, category_id?, transfer_account_id?, type, amount | type: income/expense/transfer |
 | `budgets` | category_id, amount_limit, period_type, start_date, end_date | period_type: monthly/yearly/custom |
@@ -135,8 +143,8 @@ supabase stop
 | Email | `demo@moneyok.local` |
 | Password | `demo-password` |
 
-The seed creates the demo profile, a default `Personal` budget book, 3
-accounts, 6 categories, 5 transactions and 2 budgets. Balances are already
+The seed creates the demo profile, a default `Personal` budget book, 4
+accounts (3 active + 1 archived example), 6 categories, 5 transactions and 2 budgets. Balances are already
 consistent (auto-maintained by triggers).
 
 ### Quick REST sanity check

@@ -43,11 +43,26 @@ update public.budget_books
    and is_default = true;
 
 -- 2) Accounts -----------------------------------------------------------
-insert into public.accounts (id, budget_book_id, name, type, currency, initial_balance, current_balance)
+-- type ∈ {payment, savings, credit_card, investment, reserve, liability, business, cash}
+-- archived_at NULL = active; non-NULL = archived at that time.
+insert into public.accounts (
+  id, budget_book_id, name, type, currency, initial_balance, current_balance,
+  color, icon, note, archived_at
+)
 values
-  ('33333333-3333-3333-3333-333333333331', '22222222-2222-2222-2222-222222222222', 'Cash',      'cash',   'USD', 200.00, 200.00),
-  ('33333333-3333-3333-3333-333333333332', '22222222-2222-2222-2222-222222222222', 'Main Bank', 'bank',   'USD', 5000.00, 5000.00),
-  ('33333333-3333-3333-3333-333333333333', '22222222-2222-2222-2222-222222222222', 'Credit',    'credit', 'USD', 0.00, 0.00)
+  ('33333333-3333-3333-3333-333333333331', '22222222-2222-2222-2222-222222222222',
+   'Cash',      'cash',        'USD', 200.00, 200.00,
+   '#10b981', 'wallet',     'Щоденні витрати', null),
+  ('33333333-3333-3333-3333-333333333332', '22222222-2222-2222-2222-222222222222',
+   'Main Bank', 'payment',     'USD', 5000.00, 5000.00,
+   '#3b82f6', 'building-2', 'Основний платіжний рахунок (Monobank)', null),
+  ('33333333-3333-3333-3333-333333333333', '22222222-2222-2222-2222-222222222222',
+   'Credit',    'credit_card', 'USD', 0.00, 0.00,
+   '#ef4444', 'credit-card','Кредитна картка для щомісячних витрат', null),
+  -- Archived example (savings pot we no longer track).
+  ('33333333-3333-3333-3333-333333333334', '22222222-2222-2222-2222-222222222222',
+   'Old Savings', 'savings',   'USD', 0.00, 0.00,
+   '#a855f7', 'piggy-bank', 'Закритий ощадний рахунок', now() - interval '60 days')
 on conflict (id) do nothing;
 
 -- 3) Categories (hierarchical: parent groups + leaf subcategories) ----------

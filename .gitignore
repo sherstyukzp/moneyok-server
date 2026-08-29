@@ -1,0 +1,13 @@
+# Dependencies / build
+node_modules/
+dist/
+build/
+.env
+.env.local
+
+# Supabase local runtime (managed by supabase CLI)
+supabase/.temp/
+supabase/.branches/
+
+# OS / editor
+.DS_Store

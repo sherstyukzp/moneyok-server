@@ -55,7 +55,8 @@ supabase/
     ├── 0009_categories_subcategories.sql   # hierarchical categories (parents + leaves)
     ├── 0010_recipients.sql                  # recipients + transactions.recipient_id
     ├── 0011_tags.sql                        # tags + transactions.tag_id
-    └── 0012_accounts_enhancements.sql       # accounts: richer type, color/icon/note, archived_at
+    ├── 0012_accounts_enhancements.sql       # accounts: richer type, color/icon/note, archived_at
+    └── 0013_bot_sessions.sql                # Telegram bot sessions (encrypted JWT pair per telegram_id, service_role only)
 ```
 
 ## Schema & relationships
@@ -64,9 +65,12 @@ supabase/
 profiles (auth.users)
   └─ budget_books (1 user → N books; one is_default per user)
        ├─ accounts      (N per book)
-       ├─ categories    (N per book; kind = income|expense)
+       ├─ categories    (N per book; parents + leaves, kind = income|expense)
        ├─ transactions  (N per book)
-       └─ budgets       (N per book; per category)
+       ├─ budgets       (N per book; per category)
+       ├─ recipients    (N per book)
+       └─ tags          (N per book)
+bot_sessions (separate tree: telegram_id → profile_id; service_role only)
 ```
 
 Entities:
@@ -76,9 +80,10 @@ Entities:
 | `profiles` | id, email, full_name, default_currency | 1:1 with auth.users |
 | `budget_books` | user_id, name, is_default | unique partial index: 1 default/user |
 | `accounts` | budget_book_id, name, type, currency, color, icon, note, initial_balance, current_balance, archived_at | type: payment/savings/credit_card/investment/reserve/liability/business/cash; `archived_at` NULL = active |
-| `categories` | budget_book_id, name, kind, icon, color | unique (book, name, kind) |
-| `transactions` | account_id, category_id?, transfer_account_id?, type, amount | type: income/expense/transfer |
+| `categories` | budget_book_id, name, kind, icon, color, parent_id | unique (book, lower(name), kind); leaves only accept transactions |
+| `transactions` | account_id, category_id?, transfer_account_id?, recipient_id?, tag_id?, type, amount, occurred_at | type: income/expense/transfer; balance maintained by trigger |
 | `budgets` | category_id, amount_limit, period_type, start_date, end_date | period_type: monthly/yearly/custom |
+| `bot_sessions` | telegram_id unique, profile_id, encrypted access/refresh token bytea, access_token_expires_at | Telegram bot only; service_role access; encryption key lives in bot env |
 
 Cross-entity integrity is enforced by triggers (`0005`, `0006`) that reject
 rows whose `account`/`category`/`transfer_account` aren't in the same
